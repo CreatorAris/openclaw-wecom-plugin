@@ -1,5 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { URL } from 'node:url';
 import { WeComCrypto } from './crypto.js';
 
@@ -9,6 +11,7 @@ const plugin = {
     const token = cfg.token || process.env.WECOM_TOKEN;
     const encodingAESKey = cfg.encodingAESKey || process.env.WECOM_ENCODING_AES_KEY;
     const corpId = cfg.corpId || process.env.WECOM_CORP_ID || '';
+    const corpSecret = cfg.corpSecret || process.env.WECOM_CORPSECRET || '';
     const port = Number(cfg.port || process.env.PORT || 8788);
 
     if (!token || !encodingAESKey) {
@@ -73,17 +76,130 @@ const plugin = {
       return JSON.stringify({ encrypt: encrypted, msgsignature, timestamp: Number(timestamp), nonce });
     }
 
-    function extractUserText(msg, isGroup = false) {
+    // ── Image handling ──
+
+    const IMAGE_CACHE_DIR = '/tmp/openclaw-wecom-images';
+    const IMAGE_MAX_AGE_MS = 60 * 60 * 1000;
+
+    let wecomAccessToken = null;
+    let tokenExpireTime = 0;
+
+    async function getWeComAccessToken() {
+      if (!corpId || !corpSecret) return null;
+      const now = Date.now();
+      if (wecomAccessToken && now < tokenExpireTime) return wecomAccessToken;
+      try {
+        const url = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${corpSecret}`;
+        const data = await (await fetch(url)).json();
+        if (data.errcode === 0 && data.access_token) {
+          wecomAccessToken = data.access_token;
+          tokenExpireTime = now + (data.expires_in - 300) * 1000;
+          log.info('[WeCom] access_token obtained');
+          return wecomAccessToken;
+        }
+        log.error(`[WeCom] access_token failed: ${data.errmsg}`);
+        return null;
+      } catch (err) {
+        log.error(`[WeCom] access_token error: ${err.message}`);
+        return null;
+      }
+    }
+
+    async function downloadWeComMedia(mediaId) {
+      try {
+        const accessToken = await getWeComAccessToken();
+        if (!accessToken) return null;
+        const url = `https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token=${accessToken}&media_id=${mediaId}`;
+        log.info(`[WeCom Media] downloading media_id=${mediaId}`);
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) return null;
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength > 10 * 1024 * 1024) return null;
+        await fs.mkdir(IMAGE_CACHE_DIR, { recursive: true });
+        const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-media.jpg`;
+        const filepath = path.join(IMAGE_CACHE_DIR, filename);
+        await fs.writeFile(filepath, Buffer.from(buffer));
+        log.info(`[WeCom Media] saved ${filename} (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
+        return filepath;
+      } catch (err) {
+        log.error(`[WeCom Media] download failed: ${err.message}`);
+        return null;
+      }
+    }
+
+    async function downloadImage(imageUrl) {
+      try {
+        log.info(`[Image] downloading ${imageUrl.slice(0, 100)}`);
+        const response = await fetch(imageUrl);
+        if (!response.ok) return null;
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength > 10 * 1024 * 1024) return null;
+        await fs.mkdir(IMAGE_CACHE_DIR, { recursive: true });
+        const ext = path.extname(new URL(imageUrl).pathname) || '.jpg';
+        const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+        const filepath = path.join(IMAGE_CACHE_DIR, filename);
+        await fs.writeFile(filepath, Buffer.from(buffer));
+        log.info(`[Image] saved ${filename} (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
+        return filepath;
+      } catch (err) {
+        log.error(`[Image] download failed: ${err.message}`);
+        return null;
+      }
+    }
+
+    async function resolveImage(imageObj) {
+      const mediaId = imageObj?.media_id;
+      const imageUrl = imageObj?.url || imageObj?.pic_url;
+      let localPath = null;
+      if (mediaId) localPath = await downloadWeComMedia(mediaId);
+      if (!localPath && imageUrl) localPath = await downloadImage(imageUrl);
+      if (localPath) return `[用户发送了一张图片]\n本地路径: ${localPath}\n请使用image工具分析这张图片并回复用户。`;
+      if (imageUrl) return `[用户发送了一张图片]\n图片URL: ${imageUrl}`;
+      return '[用户发送了一张图片，但无法获取]';
+    }
+
+    async function cleanupImageCache() {
+      try {
+        const files = await fs.readdir(IMAGE_CACHE_DIR).catch(() => []);
+        const cutoff = Date.now() - IMAGE_MAX_AGE_MS;
+        for (const file of files) {
+          const filepath = path.join(IMAGE_CACHE_DIR, file);
+          const stat = await fs.stat(filepath).catch(() => null);
+          if (stat && stat.mtimeMs < cutoff) await fs.unlink(filepath).catch(() => {});
+        }
+      } catch {}
+    }
+
+    async function extractUserText(msg, isGroup = false) {
       const cleanMention = (text) => isGroup ? text.replace(/@[^\s@]+\s*/g, '').trim() : text.trim();
 
       if (msg.msgtype === 'text') return cleanMention(msg.text?.content || '');
       if (msg.msgtype === 'voice') return msg.voice?.content?.trim() || '';
+
       if (msg.msgtype === 'mixed') {
         const parts = msg.mixed?.msg_item || [];
-        const text = parts.filter(p => p.msgtype === 'text').map(p => p.text?.content || '').join(' ');
-        return cleanMention(text);
+        const textParts = [];
+        const imagePrompts = [];
+        for (const part of parts) {
+          if (part.msgtype === 'text') {
+            textParts.push(part.text?.content || '');
+          } else if (part.msgtype === 'image') {
+            imagePrompts.push(await resolveImage(part.image));
+          }
+        }
+        let result = cleanMention(textParts.join(' '));
+        if (imagePrompts.length > 0) {
+          result = result ? `${result}\n\n${imagePrompts.join('\n\n')}` : imagePrompts.join('\n\n');
+        }
+        return result;
       }
-      if (msg.msgtype === 'image') return '[图片消息] 暂不支持图片回复';
+
+      if (msg.msgtype === 'image') {
+        return await resolveImage(msg.image);
+      }
+
       return '';
     }
 
@@ -280,7 +396,7 @@ const plugin = {
           }
 
           const isGroup = chattype === 'group';
-          const text = extractUserText(msg, isGroup);
+          const text = await extractUserText(msg, isGroup);
           log.info(`[<- ${source}] (${msgtype}) ${text.slice(0, 100)}`);
 
           if (!text) {
@@ -325,6 +441,7 @@ const plugin = {
           });
 
           cleanupStreams();
+          cleanupImageCache();
           return;
         }
 
@@ -354,7 +471,7 @@ const plugin = {
           });
 
           server.listen(port, '127.0.0.1', () => {
-            log.info(`wecom-bridge listening on 127.0.0.1:${port}`);
+            log.info(`openclaw-wecom plugin listening on 127.0.0.1:${port}`);
             log.info(`  Callback: /callback`);
             log.info(`  OpenClaw: ${openclawApi}`);
             resolve();

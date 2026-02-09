@@ -1,6 +1,6 @@
 {
   "id": "openclaw-wecom",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "name": "企业微信（WeCom）",
   "description": "企业微信智能助手机器人桥接，支持流式回复、加密消息、单聊和群聊",
   "author": "CreatorAris",
@@ -38,7 +38,11 @@
       },
       "corpId": {
         "type": "string",
-        "description": "企业微信 CorpID（可选，用于消息加密校验）"
+        "description": "企业微信 CorpID（可选，用于图片下载）"
+      },
+      "corpSecret": {
+        "type": "string",
+        "description": "企业微信 CorpSecret（可选，用于图片下载）"
       },
       "port": {
         "type": "number",
@@ -60,7 +64,12 @@
     },
     "corpId": {
       "label": "CorpID",
-      "description": "企业微信企业 ID，可选"
+      "description": "企业微信企业 ID，配合 CorpSecret 可下载图片"
+    },
+    "corpSecret": {
+      "label": "CorpSecret",
+      "sensitive": true,
+      "description": "企业微信应用密钥，配合 CorpID 可下载图片"
     },
     "port": {
       "label": "端口",
