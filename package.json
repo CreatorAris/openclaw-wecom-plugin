@@ -1,6 +1,6 @@
 {
   "name": "@creatoraris/openclaw-wecom",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Enterprise WeChat (WeCom) channel plugin for OpenClaw - 企业微信智能助手机器人桥接",
   "main": "index.js",
   "type": "module",

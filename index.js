@@ -129,18 +129,41 @@ const plugin = {
       }
     }
 
+    function decryptImageIfNeeded(buf) {
+      // Check if already a known image format
+      if ((buf[0] === 0xff && buf[1] === 0xd8) || (buf[0] === 0x89 && buf[1] === 0x50)) return buf;
+      // Try AES-256-CBC decryption with WeCom encodingAESKey
+      if (buf.length % 16 !== 0) return buf;
+      try {
+        const decipher = crypto.createDecipheriv('aes-256-cbc', botCrypto.aesKey, botCrypto.iv);
+        decipher.setAutoPadding(false);
+        let decrypted = Buffer.concat([decipher.update(buf), decipher.final()]);
+        // Remove PKCS7 padding
+        const pad = decrypted[decrypted.length - 1];
+        if (pad > 0 && pad <= 32) decrypted = decrypted.subarray(0, decrypted.length - pad);
+        // Verify it's a real image now
+        if ((decrypted[0] === 0xff && decrypted[1] === 0xd8) || (decrypted[0] === 0x89 && decrypted[1] === 0x50)) {
+          log.info('[Image] decrypted successfully');
+          return decrypted;
+        }
+        return buf;
+      } catch { return buf; }
+    }
+
     async function downloadImage(imageUrl) {
       try {
         log.info(`[Image] downloading ${imageUrl.slice(0, 100)}`);
         const response = await fetch(imageUrl);
         if (!response.ok) return null;
-        const buffer = await response.arrayBuffer();
+        let buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.byteLength > 10 * 1024 * 1024) return null;
+        buffer = decryptImageIfNeeded(buffer);
         await fs.mkdir(IMAGE_CACHE_DIR, { recursive: true });
-        const ext = path.extname(new URL(imageUrl).pathname) || '.jpg';
+        // Detect actual format from magic bytes
+        const ext = (buffer[0] === 0x89 && buffer[1] === 0x50) ? '.png' : '.jpg';
         const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
         const filepath = path.join(IMAGE_CACHE_DIR, filename);
-        await fs.writeFile(filepath, Buffer.from(buffer));
+        await fs.writeFile(filepath, buffer);
         log.info(`[Image] saved ${filename} (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB)`);
         return filepath;
       } catch (err) {
@@ -150,6 +173,7 @@ const plugin = {
     }
 
     async function resolveImage(imageObj) {
+      log.info(`[Image] raw fields: ${JSON.stringify(imageObj)}`);
       const mediaId = imageObj?.media_id;
       const imageUrl = imageObj?.url || imageObj?.pic_url;
       let localPath = null;
