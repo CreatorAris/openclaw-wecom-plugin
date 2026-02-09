@@ -1,6 +1,6 @@
 {
   "name": "@creatoraris/openclaw-wecom",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Enterprise WeChat (WeCom) channel plugin for OpenClaw - 企业微信智能助手机器人桥接",
   "main": "index.js",
   "type": "module",
@@ -26,9 +26,7 @@
   "scripts": {
     "start": "node index.js"
   },
-  "dependencies": {
-    "dotenv": "^16.4.0"
-  },
+  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
   },

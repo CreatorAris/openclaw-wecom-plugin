@@ -1,6 +1,6 @@
 {
   "id": "wecom",
-  "version": "0.1.0-beta",
+  "version": "0.2.0",
   "name": "企业微信（WeCom）",
   "description": "企业微信智能助手机器人桥接，支持流式回复、加密消息、单聊和群聊",
   "author": "CreatorAris",
@@ -28,11 +28,6 @@
         "type": "boolean",
         "description": "启用企业微信通道"
       },
-      "webhookUrl": {
-        "type": "string",
-        "format": "uri",
-        "description": "Webhook 回调 URL"
-      },
       "token": {
         "type": "string",
         "description": "企业微信机器人 Token"
@@ -41,20 +36,18 @@
         "type": "string",
         "description": "企业微信消息加密密钥"
       },
+      "corpId": {
+        "type": "string",
+        "description": "企业微信 CorpID（可选，用于消息加密校验）"
+      },
       "port": {
         "type": "number",
         "default": 8788,
         "description": "Webhook 服务器监听端口"
       }
-    },
-    "required": ["webhookUrl", "token", "encodingAESKey"]
+    }
   },
   "uiHints": {
-    "webhookUrl": {
-      "label": "Webhook URL",
-      "placeholder": "https://your-domain.com/wecom/callback",
-      "description": "企业微信回调 URL，需要公网可访问"
-    },
     "token": {
       "label": "Token",
       "sensitive": true,
@@ -65,9 +58,13 @@
       "sensitive": true,
       "description": "用于消息加密解密"
     },
+    "corpId": {
+      "label": "CorpID",
+      "description": "企业微信企业 ID，可选"
+    },
     "port": {
       "label": "端口",
-      "description": "Webhook 服务器监听端口"
+      "description": "Webhook 服务器监听端口，默认 8788"
     }
   }
 }
