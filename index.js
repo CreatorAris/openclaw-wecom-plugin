@@ -338,6 +338,7 @@ const plugin = {
     };
 
     api.registerService({
+      id: 'wecom-server',
       async start() {
         server = http.createServer(requestHandler);
 
