@@ -1,0 +1,73 @@
+{
+  "id": "wecom",
+  "version": "0.1.0-beta",
+  "name": "企业微信（WeCom）",
+  "description": "企业微信智能助手机器人桥接，支持流式回复、加密消息、单聊和群聊",
+  "author": "CreatorAris",
+  "license": "MIT",
+  "homepage": "https://github.com/CreatorAris/openclaw-wecom-plugin",
+  "extensions": ["./index.js"],
+  "channel": {
+    "id": "wecom",
+    "label": "企业微信",
+    "selectionLabel": "企业微信（智能助手机器人）",
+    "docsPath": "/channels/wecom",
+    "docsLabel": "wecom",
+    "blurb": "通过企业微信智能助手机器人接入 OpenClaw，支持流式回复和加密消息",
+    "order": 50,
+    "aliases": ["wechat-work", "wxwork", "qywx"]
+  },
+  "install": {
+    "npmSpec": "@creatoraris/openclaw-wecom",
+    "defaultChoice": "npm"
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "description": "启用企业微信通道"
+      },
+      "webhookUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "Webhook 回调 URL"
+      },
+      "token": {
+        "type": "string",
+        "description": "企业微信机器人 Token"
+      },
+      "encodingAESKey": {
+        "type": "string",
+        "description": "企业微信消息加密密钥"
+      },
+      "port": {
+        "type": "number",
+        "default": 8788,
+        "description": "Webhook 服务器监听端口"
+      }
+    },
+    "required": ["webhookUrl", "token", "encodingAESKey"]
+  },
+  "uiHints": {
+    "webhookUrl": {
+      "label": "Webhook URL",
+      "placeholder": "https://your-domain.com/wecom/callback",
+      "description": "企业微信回调 URL，需要公网可访问"
+    },
+    "token": {
+      "label": "Token",
+      "sensitive": true,
+      "description": "在企业微信机器人配置页面生成"
+    },
+    "encodingAESKey": {
+      "label": "EncodingAESKey",
+      "sensitive": true,
+      "description": "用于消息加密解密"
+    },
+    "port": {
+      "label": "端口",
+      "description": "Webhook 服务器监听端口"
+    }
+  }
+}
