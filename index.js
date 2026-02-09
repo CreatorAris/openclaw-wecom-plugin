@@ -28,6 +28,11 @@ const plugin = {
     const botCrypto = new WeComCrypto(token, encodingAESKey, corpId);
     const log = api.logger;
 
+    // ── Sessions directory (for context reset) ──
+    const openclawDir = path.dirname(api.config?.agents?.defaults?.workspace || path.join(process.env.HOME, '.openclaw', 'workspace'));
+    const sessionsDir = path.join(openclawDir, 'agents', 'main', 'sessions');
+    const RESET_COMMANDS = ['/reset', '/重置'];
+
     // ── Stream state management ──
     const streams = new Map();
 
@@ -426,6 +431,43 @@ const plugin = {
           if (!text) {
             res.writeHead(200);
             res.end('');
+            return;
+          }
+
+          // ── Context reset command ──
+          if (RESET_COMMANDS.includes(text.trim().toLowerCase())) {
+            const sessionId = chattype === 'group' ? `wecom_group_${chatid}` : `wecom_bot_${from?.userid}`;
+            const sessionKey = `agent:main:openresponses-user:${sessionId}`;
+            let resetMsg = '上下文已重置，开始新的对话。';
+
+            try {
+              const sessionsFile = path.join(sessionsDir, 'sessions.json');
+              const sessionsData = JSON.parse(await fs.readFile(sessionsFile, 'utf8'));
+              const session = sessionsData[sessionKey];
+              if (session?.sessionId) {
+                const sessionFile = path.join(sessionsDir, `${session.sessionId}.jsonl`);
+                await fs.rename(sessionFile, `${sessionFile}.reset.${Date.now()}`).catch(() => {});
+                delete sessionsData[sessionKey];
+                await fs.writeFile(sessionsFile, JSON.stringify(sessionsData, null, 2));
+                log.info(`[Reset] session ${sessionKey} cleared`);
+              } else {
+                log.info(`[Reset] no session found for ${sessionKey}`);
+                resetMsg = '当前没有活跃的对话上下文。';
+              }
+            } catch (err) {
+              log.error(`[Reset] error: ${err.message}`);
+              resetMsg = '重置失败，请稍后重试。';
+            }
+
+            const resetStreamId = makeStreamId();
+            streams.set(resetStreamId, { content: resetMsg, finished: true, createdAt: Date.now() });
+            const replyObj = {
+              msgtype: 'stream',
+              stream: { id: resetStreamId, finish: true, content: resetMsg },
+            };
+            const encrypted = encryptReply(replyObj, nonce);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(encrypted);
             return;
           }
 
