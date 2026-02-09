@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { URL } from 'node:url';
@@ -63,21 +63,26 @@ function encryptReply(jsonObj, nonce) {
   return JSON.stringify({ encrypt: encrypted, msgsignature, timestamp: Number(timestamp), nonce });
 }
 
-function extractUserText(msg) {
+function extractUserText(msg, isGroup = false) {
+  // 群聊需要删除 @ 提及，单聊保留所有内容（包括 @）
+  const cleanMention = (text) => isGroup ? text.replace(/@[^\s@]+\s*/g, '').trim() : text.trim();
+  
   if (msg.msgtype === 'text') {
-    return msg.text?.content?.replace(/@\S+\s?/g, '').trim() || '';
+    return cleanMention(msg.text?.content || '');
   }
   if (msg.msgtype === 'voice') {
     return msg.voice?.content?.trim() || '';
   }
   if (msg.msgtype === 'mixed') {
     const parts = msg.mixed?.msg_item || [];
-    return parts
+    const text = parts
       .filter(p => p.msgtype === 'text')
       .map(p => p.text?.content || '')
-      .join(' ')
-      .replace(/@\S+\s?/g, '')
-      .trim();
+      .join(' ');
+    return cleanMention(text);
+  }
+  if (msg.msgtype === 'image') {
+    return '[图片消息] 暂不支持图片回复';
   }
   return '';
 }
@@ -282,7 +287,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const text = extractUserText(msg);
+      const isGroup = chattype === 'group';
+      const text = extractUserText(msg, isGroup);
       console.log(`[← ${source}] (${msgtype}) ${text.slice(0, 100)}`);
 
       if (!text) {
@@ -353,3 +359,4 @@ process.on('SIGINT', () => {
   server.close();
   process.exit(0);
 });
+
