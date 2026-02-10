@@ -436,8 +436,9 @@ const plugin = {
 
           // ── Context reset command ──
           if (RESET_COMMANDS.includes(text.trim().toLowerCase())) {
-            const sessionId = chattype === 'group' ? `wecom_group_${chatid}` : `wecom_bot_${from?.userid}`;
-            const sessionKey = `agent:main:openresponses-user:${sessionId}`;
+            const rawSessionId = chattype === 'group' ? `wecom_group_${chatid}` : `wecom_bot_${from?.userid}`;
+            // OpenClaw lowercases user IDs internally, so we must match that
+            const sessionKey = `agent:main:openresponses-user:${rawSessionId.toLowerCase()}`;
             let resetMsg = '上下文已重置，开始新的对话。';
 
             try {
