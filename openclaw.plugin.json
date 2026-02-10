@@ -1,6 +1,6 @@
 {
   "id": "openclaw-wecom",
-  "version": "0.3.0",
+  "version": "0.4.2",
   "name": "企业微信（WeCom）",
   "description": "企业微信智能助手机器人桥接，支持流式回复、加密消息、单聊和群聊",
   "author": "CreatorAris",
