@@ -1,9 +1,25 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake.svg" />
+  <img alt="github contribution snake animation" src="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake.svg" />
+</picture>
+
 # OpenClaw WeCom Plugin
 
 企业微信（WeCom）智能助手机器人桥接插件，让你的 OpenClaw AI 助手接入企业微信。
 
 [![npm version](https://img.shields.io/npm/v/@creatoraris/openclaw-wecom.svg)](https://www.npmjs.com/package/@creatoraris/openclaw-wecom)
+[![npm downloads](https://img.shields.io/npm/dm/@creatoraris/openclaw-wecom.svg)](https://www.npmjs.com/package/@creatoraris/openclaw-wecom)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
+[![GitHub stars](https://img.shields.io/github/stars/CreatorAris/openclaw-wecom-plugin.svg)](https://github.com/CreatorAris/openclaw-wecom-plugin/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/CreatorAris/openclaw-wecom-plugin.svg)](https://github.com/CreatorAris/openclaw-wecom-plugin/commits)
+
+[English](README.md)
+
+</div>
 
 ## 特性
 
@@ -134,10 +150,3 @@ journalctl --user -u openclaw-gateway -f
 
 MIT License - 详见 [LICENSE](LICENSE) 文件
 
----
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake.svg" />
-  <img alt="github contribution snake animation" src="https://raw.githubusercontent.com/CreatorAris/CreatorAris/dist/github-snake.svg" />
-</picture>
